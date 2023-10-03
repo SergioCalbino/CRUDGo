@@ -7,6 +7,12 @@ type User struct {
 	Name     string `json:"name"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
+	Token    string `json:"token"`
+}
+
+type LoginUser struct {
+	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
 type Users []User

@@ -8,6 +8,7 @@ import (
 	"gormjwt/utils"
 	"net/http"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -84,6 +85,15 @@ func CreateUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	hashedPassword, err := utils.HashPassword(user.Password)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("Error al hashear la contraseña")
+		return
+	}
+
+	user.Password = hashedPassword
+
 	if err := db.Database.Save(&user).Error; err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		fmt.Println("Error al crear el usuario en la base de datos:", err)
@@ -92,10 +102,12 @@ func CreateUser(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Responde con el usuario creado en formato JSON
+	user.Password = ""
 	output, _ := json.Marshal(&user)
 	fmt.Fprintln(rw, string(output))
 
 }
+
 func UpdateUser(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 
@@ -137,4 +149,58 @@ func DeleteUser(rw http.ResponseWriter, r *http.Request) {
 		rw.WriteHeader(http.StatusOK)
 		rw.Write([]byte("El usuario ha sido eliminado"))
 	}
+}
+
+func LoginUser(rw http.ResponseWriter, r *http.Request) {
+	rw.Header().Set("Content-Type", "application/json")
+
+	loginUser := models.LoginUser{}
+
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&loginUser); err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(rw, "Error al decodificar el json", err)
+		return
+	}
+
+	user := models.User{}
+	if err := db.Database.Where("email=?", loginUser.Email).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			rw.WriteHeader(http.StatusUnauthorized)
+			fmt.Println("Credenciales invalidas")
+			return
+		}
+		rw.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("Error al buscar el usuario")
+		return
+	}
+
+	if user.ID == 0 {
+		rw.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintln(rw, "Credenciales inválidas")
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginUser.Password)); err != nil {
+		rw.WriteHeader(http.StatusUnauthorized)
+		fmt.Println("Los password no coinciden")
+		fmt.Fprintln(rw, "Los password no coinciden")
+		return
+	}
+
+	tokenString, err := utils.GenerateJWT(user)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("Error al generar el token JWT:", err)
+		fmt.Fprintln(rw, "Error al generar el token JWT")
+		return
+
+	}
+	user.Token = tokenString
+
+	// Devuelve el usuario con el token JWT en la respuesta en formato JSON
+	rw.WriteHeader(http.StatusOK)
+	output, _ := json.Marshal(&user)
+	rw.Write(output)
+
 }
