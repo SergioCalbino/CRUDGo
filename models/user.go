@@ -8,6 +8,8 @@ type User struct {
 	Password string `json:"password"`
 	Email    string `json:"email"`
 	Token    string `json:"token"`
+	// ProductID string  `json:"product_id"`
+	// Product   Product `gorm:"foreignkey:product_id"`
 }
 
 type LoginUser struct {
