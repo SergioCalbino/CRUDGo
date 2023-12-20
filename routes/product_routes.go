@@ -9,5 +9,6 @@ import (
 func ProductRoutes(router *mux.Router) {
 
 	router.HandleFunc("/api/product", handlers.CreateProduct).Methods("POST")
+	router.HandleFunc("/api/product", handlers.GetProducts).Methods("GET")
 
 }

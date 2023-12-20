@@ -33,3 +33,22 @@ func CreateProduct(rw http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(rw, string(output))
 
 }
+
+func GetProducts(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var products []models.Product
+
+	if err := db.Database.Find(&products).Error; err != nil {
+		w.WriteHeader(http.StatusBadRequest) // Bad request
+		fmt.Println("Erro al buscar los productos")
+		return
+	}
+
+	jsonResponse, err := json.Marshal(products)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	w.Write(jsonResponse)
+}
